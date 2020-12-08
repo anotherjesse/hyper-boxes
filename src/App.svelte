@@ -1,12 +1,18 @@
 <script>
-  import Box from "./Box.svelte";
-  const id = () => "_" + Math.random().toString(36).substr(2, 9);
+  import debounce from 'lodash/debounce';
+  import Box from './Box.svelte';
+  import {updateFile} from './data.js';
+
+  const id = () =>
+    Math.random()
+      .toString(36)
+      .substr(2, 12);
 
   const randomNumberInRange = (min, max) =>
     Math.ceil(Math.random() * (max - min) + min);
 
-  const newItem = (src) => ({
-    src,
+  const newItem = url => ({
+    url: 'about:blank',
     x: randomNumberInRange(0, 500),
     y: randomNumberInRange(0, 500),
     w: 200,
@@ -16,53 +22,65 @@
 
   let items = [];
 
-  function add(src, props) {
+  function add(props) {
     const item = {
-      ...newItem(src || "http://localhost:8000/0.html"),
+      ...newItem(),
       ...(props || {}),
     };
 
     items = [...items, item];
   }
 
-  const move = (id, x, y) => {
-    items = items.map((item) => (item.id === id ? { ...item, x, y } : item));
+  const update = (id, updates) => {
+    items = items.map(item => (item.id === id ? {...item, ...updates} : item));
   };
 
-  const remove = (item) => {
-    items = items.filter((value) => value.id !== item.id);
+  const remove = item => {
+    items = items.filter(value => value.id !== item.id);
   };
 
   const moveStart = (event, item) => {
     var style = window.getComputedStyle(event.target, null);
     event.dataTransfer.setData(
-      "text/xy",
-      parseInt(style.getPropertyValue("left"), 10) -
+      'text/xy',
+      parseInt(style.getPropertyValue('left'), 10) -
         event.clientX +
-        "," +
-        (parseInt(style.getPropertyValue("top"), 10) - event.clientY) +
-        "," +
+        ',' +
+        (parseInt(style.getPropertyValue('top'), 10) - event.clientY) +
+        ',' +
         item.id
     );
   };
 
-  const allowDrop = (ev) => {
+  const allowDrop = ev => {
     ev.preventDefault();
   };
 
-  const drop = (ev) => {
+  const drop = ev => {
     ev.preventDefault();
 
-    var url = ev.dataTransfer.getData("text/uri-list");
+    var url = ev.dataTransfer.getData('text/uri-list');
     if (url) {
-      return add(url, { x: ev.clientX, y: ev.clientY });
+      return add({url, x: ev.clientX, y: ev.clientY});
     }
-    const xyid = ev.dataTransfer.getData("text/xy");
+    const xyid = ev.dataTransfer.getData('text/xy');
     if (xyid) {
-      const [x, y, id] = xyid.split(",");
-      move(id, parseInt(x, 10) + ev.clientX, parseInt(y, 10) + ev.clientY);
+      const [x, y, id] = xyid.split(',');
+      update(id, {
+        x: parseInt(x, 10) + ev.clientX,
+        y: parseInt(y, 10) + ev.clientY,
+      });
     }
   };
+
+  const resize = debounce((ev, item) => {
+    update(item.id, {
+      w: ev.target.clientWidth,
+      h: ev.target.clientHeight,
+    });
+  }, 100);
+
+  $: updateFile('/items.json', JSON.stringify(items));
 </script>
 
 <style>
@@ -75,12 +93,11 @@
 </style>
 
 <div id="page" on:drop={drop} on:dragover={allowDrop}>
-  <button on:click={() => add()}>Add (random size)</button>
-
   {#each items as item, i (item.id)}
     <Box
       bind:item
+      handleResize={e => resize(e, item)}
       handleDelete={() => remove(item)}
-      handleMove={(e) => moveStart(e, item)} />
+      handleMove={e => moveStart(e, item)} />
   {/each}
 </div>

@@ -1,7 +1,10 @@
 <script>
+  import observeResize from 'svelte-observe-resize';
+
   export let item;
   export let handleDelete;
   export let handleMove;
+  export let handleResize;
 </script>
 
 <style>
@@ -16,24 +19,26 @@
     margin-top: 20px;
     width: 100%;
     height: 100%;
+    margin: 10px;
   }
   .box {
     position: absolute;
     background: #ccc;
-  }
-  .controls {
-    background: #888;
+    resize: both;
+    overflow: auto;
   }
 </style>
 
 <div
   class="box"
-  style="width: {item.width}px; height: {item.height}px; top: {item.y}px; left: {item.x}px"
+  style="width: {item.w}px; height: {item.h}px; top: {item.y}px; left: {item.x}px"
   draggable={true}
+  use:observeResize
+  on:resize={handleResize}
   on:dragstart={handleMove}>
   <div class="controls">
     move ...
-    <span id="close" on:click={(e) => handleDelete(e)}>[x]</span>
+    <span id="close" on:click={e => handleDelete(e)}>[x]</span>
   </div>
-  <iframe src={item.src} />
+  <iframe src={item.url} />
 </div>
